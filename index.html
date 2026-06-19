@@ -271,11 +271,7 @@
       if($("entryDate").value < todayISO()){ $("entryDate").value = shiftISO($("entryDate").value, 1); updateDateUI(); }
     });
   })();
-  if (!localStorage.getItem("moodDiaryStarted")){
-    var op=document.querySelector('input[data-key="on_period"]');
-    if(op) op.checked=true;
-    localStorage.setItem("moodDiaryStarted","1");
-  }
+  // All check-boxes start unticked on every load/refresh.
 
   // ---- settings modal ----
   function openSettings(){
