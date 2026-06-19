@@ -25,12 +25,12 @@
     min-height:100vh;
   }
   .wrap{max-width:580px;margin:0 auto}
-  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
   h1{font-size:1.7rem;margin:0;font-weight:750;letter-spacing:-.02em;color:var(--orange);
      text-shadow:0 1px 1px rgba(0,0,0,.18)}
-  .sub{color:#f2efee;font-size:.92rem;margin:0 0 22px;text-shadow:0 1px 1px rgba(0,0,0,.15)}
-  .gear{background:rgba(255,255,255,.18);border:none;cursor:pointer;font-size:1.25rem;color:#fff;
-        padding:8px 10px;border-radius:12px;line-height:1}
+  .sub{color:#f2efee;font-size:.92rem;margin:0 0 22px;padding-right:54px;text-shadow:0 1px 1px rgba(0,0,0,.15)}
+  .gear{flex:none;background:rgba(255,255,255,.28);border:none;cursor:pointer;font-size:1.25rem;color:#fff;
+        padding:9px 11px;border-radius:12px;line-height:1}
   .gear:hover{background:rgba(255,255,255,.32)}
   .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px;margin-bottom:18px}
   h2.head{color:var(--orange);font-size:1.12rem;font-weight:700;margin:0 0 12px;letter-spacing:-.01em}
@@ -90,7 +90,7 @@
     <h1>Mood Diary</h1>
     <button class="gear" id="gearBtn" title="Settings" aria-label="Settings">&#9881;</button>
   </header>
-  <p class="sub" id="subline">A quick daily check-in. Tick what feels true today.</p>
+  <p class="sub" id="subline">A quick daily check-in.</p>
 
   <div class="card">
     <label class="field" for="entryDate">Date</label>
