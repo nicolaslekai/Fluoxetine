@@ -21,7 +21,10 @@
   body{
     margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     background:linear-gradient(180deg,var(--bg),var(--bg2)); color:var(--ink); line-height:1.5;
-    padding:calc(env(safe-area-inset-top, 0px) + 30px) calc(env(safe-area-inset-right, 0px) + 16px) 90px calc(env(safe-area-inset-left, 0px) + 16px);
+    padding-top:max(64px, calc(env(safe-area-inset-top, 0px) + 26px));
+    padding-right:calc(env(safe-area-inset-right, 0px) + 16px);
+    padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 90px);
+    padding-left:calc(env(safe-area-inset-left, 0px) + 16px);
     min-height:100vh;
   }
   .wrap{max-width:580px;margin:0 auto}
@@ -122,6 +125,7 @@
   <div class="status" id="status"></div>
 
   <div class="card" id="trendCard" style="margin-top:18px">
+    <button class="ghostbtn" id="exportBtn">⤓ Export</button>
     <button class="ghostbtn" id="refreshBtn">Refresh</button>
     <h2 class="head">Trends</h2>
     <p class="empty" id="trendMsg">Load your past entries to see how things are trending.</p>
@@ -356,6 +360,65 @@
     });
   }
 
+  // Fetch all saved entries (used by export)
+  function fetchEntries(){
+    var s=loadSettings();
+    var base="https://api.github.com/repos/"+encodeURIComponent(s.owner)+"/"+encodeURIComponent(s.repo)+"/contents/data/entries?ref="+encodeURIComponent(s.branch);
+    return fetch(base,{headers:ghHeaders(s.token)})
+      .then(function(r){ if(r.status===404) return []; return r.json(); })
+      .then(function(list){
+        if(!Array.isArray(list)) return [];
+        list=list.filter(function(f){ return /\.json$/.test(f.name); });
+        return Promise.all(list.map(function(f){
+          return fetch(f.url,{headers:ghHeaders(s.token)}).then(function(r){return r.json();})
+            .then(function(o){ try{ return JSON.parse(b64decode(o.content)); }catch(e){ return null; } });
+        }));
+      })
+      .then(function(entries){
+        return entries.filter(Boolean).sort(function(a,b){ return (a.savedAt||a.date) < (b.savedAt||b.date) ? -1 : 1; });
+      });
+  }
+
+  function exportAll(){
+    var s=loadSettings();
+    if(!s.token){ setStatus("Add your token first (⚙).","err"); openSettings(); return; }
+    $("exportBtn").disabled=true; setStatus("Exporting…","");
+    fetchEntries().then(function(entries){
+      if(entries.length===0){ setStatus("Nothing to export yet — save an entry first.","err"); return; }
+      var payload={exportedAt:new Date().toISOString(), count:entries.length, entries:entries};
+      var json=JSON.stringify(payload,null,2);
+      // 1) download a copy to the device
+      var blob=new Blob([json],{type:"application/json"});
+      var dlurl=URL.createObjectURL(blob);
+      var a=document.createElement("a");
+      a.href=dlurl; a.download="mood-diary-export-"+todayISO()+".json";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(dlurl);
+      // 2) also keep a combined copy on GitHub
+      saveCombinedToRepo(json, entries.length);
+    }).catch(function(e){ setStatus("Export failed: "+e.message,"err"); })
+      .then(function(){ $("exportBtn").disabled=false; });
+  }
+
+  function saveCombinedToRepo(json, n){
+    var s=loadSettings();
+    var url="https://api.github.com/repos/"+encodeURIComponent(s.owner)+"/"+encodeURIComponent(s.repo)+"/contents/data/all-entries.json";
+    fetch(url+"?ref="+encodeURIComponent(s.branch),{headers:ghHeaders(s.token)})
+      .then(function(r){ return r.ok ? r.json().then(function(j){ return j.sha; }) : null; })
+      .then(function(sha){
+        var body={message:"export: combined entries ("+n+")", branch:s.branch, content:b64encode(json)};
+        if(sha) body.sha=sha;
+        return fetch(url,{method:"PUT",headers:{"Authorization":"Bearer "+s.token,"Accept":"application/vnd.github+json","Content-Type":"application/json"},body:JSON.stringify(body)});
+      })
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok,j:j}; }); })
+      .then(function(res){
+        if(res.ok) setStatus("Exported ✓ — downloaded + saved a combined copy to GitHub ("+n+" entries)","ok");
+        else setStatus("Downloaded ✓ but GitHub copy failed: "+((res.j&&res.j.message)||""),"err");
+      })
+      .catch(function(e){ setStatus("Downloaded ✓ but GitHub copy failed: "+e.message,"err"); });
+  }
+
+  $("exportBtn").addEventListener("click", exportAll);
   $("refreshBtn").addEventListener("click", loadHistory);
   // auto-load on open if a token is already set
   if(loadSettings().token) loadHistory();
