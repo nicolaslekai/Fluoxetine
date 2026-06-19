@@ -182,7 +182,6 @@
   ];
   var PERIOD_QS = [
     {key:"on_period",    emoji:"🩸", text:"On my period today",              short:"Period"},
-    {key:"period_day1",  emoji:"1️⃣", text:"Today is day 1 (period started)", short:"Day 1"},
     {key:"flow_light",   emoji:"💧", text:"Light flow",                      short:"Light"},
     {key:"flow_medium",  emoji:"💦", text:"Medium flow",                     short:"Medium"},
     {key:"flow_heavy",   emoji:"🌊", text:"Heavy flow",                      short:"Heavy"},
@@ -237,8 +236,7 @@
   $("entryDate").value = todayISO();
   if (!localStorage.getItem("moodDiaryStarted")){
     var op=document.querySelector('input[data-key="on_period"]');
-    var d1=document.querySelector('input[data-key="period_day1"]');
-    if(op) op.checked=true; if(d1) d1.checked=true;
+    if(op) op.checked=true;
     localStorage.setItem("moodDiaryStarted","1");
   }
 
