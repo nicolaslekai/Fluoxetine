@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mood Diary</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#808080;            /* 50% grey page */
+    --bg2:#6f6f6f;
+    --card:#ffffff; --ink:#2c2a2b; --muted:#7a7580;
+    --line:#ececec;
+    --orange:#ec7a2e;        /* headline orange */
+    --orange-dk:#d4621a;
+    --orange-soft:#fdeede;
+    --good:#4f9b78; --period:#c8506f; --period-soft:#fbe7ed;
+    --radius:16px; --shadow:0 8px 28px rgba(0,0,0,.18);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:linear-gradient(180deg,var(--bg),var(--bg2)); color:var(--ink); line-height:1.5;
+    padding:26px 16px 90px; min-height:100vh;
+  }
+  .wrap{max-width:580px;margin:0 auto}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  h1{font-size:1.7rem;margin:0;font-weight:750;letter-spacing:-.02em;color:var(--orange);
+     text-shadow:0 1px 1px rgba(0,0,0,.18)}
+  .sub{color:#f2efee;font-size:.92rem;margin:0 0 22px;text-shadow:0 1px 1px rgba(0,0,0,.15)}
+  .gear{background:rgba(255,255,255,.18);border:none;cursor:pointer;font-size:1.25rem;color:#fff;
+        padding:8px 10px;border-radius:12px;line-height:1}
+  .gear:hover{background:rgba(255,255,255,.32)}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px;margin-bottom:18px}
+  h2.head{color:var(--orange);font-size:1.12rem;font-weight:700;margin:0 0 12px;letter-spacing:-.01em}
+  h2.head .pill{font-size:.7rem;font-weight:600}
+  label.field{display:block;font-size:.76rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px}
+  input[type=date],input[type=text],input[type=password],textarea{
+    width:100%;border:1px solid var(--line);border-radius:12px;padding:11px 13px;
+    font-size:1rem;font-family:inherit;color:var(--ink);background:#fff
+  }
+  input:focus,textarea:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px var(--orange-soft)}
+  textarea{resize:vertical;min-height:74px}
+  .q{display:flex;align-items:center;gap:11px;padding:13px 14px;border:1px solid var(--line);border-radius:13px;margin-bottom:9px;cursor:pointer;transition:.15s;background:#fff}
+  .q:last-child{margin-bottom:0}
+  .q:hover{border-color:#eccba9;background:#fffaf4}
+  .q input{appearance:none;-webkit-appearance:none;min-width:23px;height:23px;border:2px solid #d8d4da;border-radius:7px;margin:0;cursor:pointer;position:relative;transition:.15s;background:#fff;flex:none}
+  .q input:checked{background:var(--orange);border-color:var(--orange)}
+  .q input:checked::after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .q .emoji{font-size:1.18rem;line-height:1;width:22px;text-align:center;flex:none}
+  .q .emoji+span{font-size:1rem}
+  label.q:has(input:checked){background:var(--orange-soft);border-color:var(--orange)}
+  .period label.q:has(input:checked){background:var(--period-soft);border-color:var(--period)}
+  .pill{display:inline-block;background:var(--period-soft);color:var(--period);font-weight:600;padding:3px 9px;border-radius:999px;vertical-align:middle}
+  .period .q input:checked{background:var(--period);border-color:var(--period)}
+  .save{width:100%;border:none;background:var(--orange);color:#fff;font-size:1.05rem;font-weight:700;padding:16px;border-radius:14px;cursor:pointer;transition:.15s;box-shadow:0 6px 16px rgba(236,122,46,.35)}
+  .save:hover{background:var(--orange-dk)}
+  .save:disabled{opacity:.55;cursor:default;box-shadow:none}
+  .status{margin-top:12px;font-size:.92rem;text-align:center;min-height:20px;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.2)}
+  .status.ok{color:#dff7e9} .status.err{color:#ffe0e6}
+  .charts{display:none}
+  canvas{margin-top:6px}
+  .ghostbtn{background:#fff;border:1px solid var(--line);color:var(--muted);font-weight:600;font-size:.85rem;padding:8px 14px;border-radius:10px;cursor:pointer;float:right;margin-top:-2px}
+  .ghostbtn:hover{border-color:var(--orange);color:var(--orange)}
+  .empty{color:var(--muted);font-size:.92rem;margin:6px 0 0}
+  .modal{position:fixed;inset:0;background:rgba(20,20,20,.5);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+  .modal.show{display:flex}
+  .modal .card{max-width:440px;width:100%;margin:0;max-height:90vh;overflow:auto}
+  .modal h2{margin:0 0 4px;font-size:1.2rem;color:var(--orange)}
+  .row{margin-bottom:14px}
+  .hint{font-size:.8rem;color:var(--muted);margin:4px 0 0}
+  .btnrow{display:flex;gap:10px;margin-top:8px}
+  .btnrow button{flex:1;padding:12px;border-radius:12px;font-size:.95rem;font-weight:600;cursor:pointer;border:1px solid var(--line)}
+  .btnrow .primary{background:var(--orange);color:#fff;border-color:var(--orange)}
+  .btnrow .ghost{background:#fff;color:var(--muted)}
+  .warn-box{background:var(--orange-soft);border:1px solid #f3d4b4;color:#9a5a22;font-size:.82rem;padding:10px 12px;border-radius:12px;margin-top:6px}
+  a{color:var(--orange)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Mood Diary</h1>
+    <button class="gear" id="gearBtn" title="Settings" aria-label="Settings">&#9881;</button>
+  </header>
+  <p class="sub" id="subline">A quick daily check-in. Tick what feels true today.</p>
+
+  <div class="card">
+    <label class="field" for="entryDate">Date</label>
+    <input type="date" id="entryDate" />
+  </div>
+
+  <div class="card">
+    <h2 class="head">How today felt</h2>
+    <div id="questions"></div>
+  </div>
+
+  <div class="card period">
+    <h2 class="head">Cycle <span class="pill">tracking</span></h2>
+    <div id="periodQs"></div>
+  </div>
+
+  <div class="card">
+    <label class="field" for="note">Anything else? (optional)</label>
+    <textarea id="note" placeholder="A line or two for yourself…"></textarea>
+  </div>
+
+  <button class="save" id="saveBtn">Save today&rsquo;s entry</button>
+  <div class="status" id="status"></div>
+
+  <div class="card" id="trendCard" style="margin-top:18px">
+    <button class="ghostbtn" id="refreshBtn">Refresh</button>
+    <h2 class="head">Trends</h2>
+    <p class="empty" id="trendMsg">Load your past entries to see how things are trending.</p>
+    <div class="charts" id="charts">
+      <canvas id="moodChart" height="170"></canvas>
+      <canvas id="freqChart" height="240"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal" id="modal">
+  <div class="card">
+    <h2>Settings</h2>
+    <p class="hint">Stored only in this browser. Your token is never saved into the page or the repo.</p>
+    <div class="row">
+      <label class="field" for="owner">GitHub username / owner</label>
+      <input type="text" id="owner" placeholder="nicolaslekai" />
+    </div>
+    <div class="row">
+      <label class="field" for="repo">Repository</label>
+      <input type="text" id="repo" placeholder="Fluoxetine" />
+    </div>
+    <div class="row">
+      <label class="field" for="branch">Branch</label>
+      <input type="text" id="branch" placeholder="main" />
+    </div>
+    <div class="row">
+      <label class="field" for="token">Personal access token</label>
+      <input type="password" id="token" placeholder="github_pat_…" autocomplete="off" />
+      <p class="hint">Fine-grained token, scoped to this repo, with <b>Contents: Read &amp; write</b>.</p>
+    </div>
+    <div class="warn-box">Keep the <b>Fluoxetine</b> repo set to <b>Private</b> so only you can read your entries.</div>
+    <div class="btnrow">
+      <button class="ghost" id="closeSettings">Close</button>
+      <button class="primary" id="saveSettings">Save settings</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- questions (short labels used in the frequency chart) ----
+  var QUESTIONS = [
+    {key:"happy",       emoji:"😊", text:"I felt happy",                short:"Happy",       positive:true},
+    {key:"calm",        emoji:"😌", text:"I felt calm and relaxed",     short:"Calm",        positive:true},
+    {key:"energetic",   emoji:"⚡", text:"I felt energetic or motivated",short:"Energetic",  positive:true},
+    {key:"clear_mind",  emoji:"💭", text:"I had clear thoughts / focus", short:"Clear mind",  positive:true},
+    {key:"grateful",    emoji:"🙏", text:"I felt content or grateful",  short:"Grateful",    positive:true},
+    {key:"fun_work",    emoji:"🎉", text:"I had fun at work",           short:"Fun at work", positive:true},
+    {key:"connected",   emoji:"💛", text:"I felt close to someone",     short:"Connected",   positive:true},
+    {key:"sad",         emoji:"😔", text:"I felt sad or down",          short:"Sad",         positive:false},
+    {key:"irritated",   emoji:"😤", text:"I felt irritated or annoyed", short:"Irritated",   positive:false},
+    {key:"anxious",     emoji:"😰", text:"I felt anxious or worried",   short:"Anxious",     positive:false},
+    {key:"overwhelmed", emoji:"🌀", text:"I felt overwhelmed or stressed",short:"Overwhelmed",positive:false},
+    {key:"tired",       emoji:"😴", text:"I felt tired or drained",     short:"Tired",       positive:false}
+  ];
+  var PERIOD_QS = [
+    {key:"on_period",   emoji:"🩸", text:"On my period today",             short:"Period"},
+    {key:"period_day1", emoji:"1️⃣", text:"Today is day 1 (period started)",short:"Day 1"},
+    {key:"cramps",      emoji:"🤕", text:"Cramps or physical discomfort",  short:"Cramps"}
+  ];
+  var ALL = QUESTIONS.concat(PERIOD_QS);
+
+  var LS = "moodDiarySettings";
+  var DEFAULTS = {owner:"nicolaslekai", repo:"Fluoxetine", branch:"main"};
+
+  function $(id){return document.getElementById(id);}
+  function todayISO(){
+    var d=new Date(), p=function(n){return (n<10?"0":"")+n;};
+    return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+  }
+  function loadSettings(){
+    var s={}; try{ s=JSON.parse(localStorage.getItem(LS)||"{}"); }catch(e){}
+    return {owner:s.owner||DEFAULTS.owner, repo:s.repo||DEFAULTS.repo,
+            branch:s.branch||DEFAULTS.branch, token:s.token||""};
+  }
+  function saveSettings(s){ localStorage.setItem(LS, JSON.stringify(s)); }
+
+  function row(q){
+    var l=document.createElement("label"); l.className="q";
+    var i=document.createElement("input"); i.type="checkbox"; i.dataset.key=q.key;
+    l.appendChild(i);
+    if(q.emoji){ var e=document.createElement("span"); e.className="emoji"; e.textContent=q.emoji; l.appendChild(e); }
+    var s=document.createElement("span"); s.textContent=q.text;
+    l.appendChild(s); return l;
+  }
+  QUESTIONS.forEach(function(q){ $("questions").appendChild(row(q)); });
+  PERIOD_QS.forEach(function(q){ $("periodQs").appendChild(row(q)); });
+
+  $("entryDate").value = todayISO();
+  if (!localStorage.getItem("moodDiaryStarted")){
+    var op=document.querySelector('input[data-key="on_period"]');
+    var d1=document.querySelector('input[data-key="period_day1"]');
+    if(op) op.checked=true; if(d1) d1.checked=true;
+    localStorage.setItem("moodDiaryStarted","1");
+  }
+
+  // ---- settings modal ----
+  function openSettings(){
+    var s=loadSettings();
+    $("owner").value=s.owner; $("repo").value=s.repo; $("branch").value=s.branch; $("token").value=s.token;
+    $("modal").classList.add("show");
+  }
+  function closeSettings(){ $("modal").classList.remove("show"); }
+  $("gearBtn").addEventListener("click", openSettings);
+  $("closeSettings").addEventListener("click", closeSettings);
+  $("saveSettings").addEventListener("click", function(){
+    saveSettings({owner:$("owner").value.trim(), repo:$("repo").value.trim(),
+      branch:($("branch").value.trim()||"main"), token:$("token").value.trim()});
+    closeSettings(); setStatus("Settings saved.","ok");
+  });
+
+  function setStatus(msg,cls){ var el=$("status"); el.textContent=msg||""; el.className="status"+(cls?(" "+cls):""); }
+  function b64encode(str){ return btoa(unescape(encodeURIComponent(str))); }
+  function b64decode(str){ return decodeURIComponent(escape(atob(str))); }
+
+  function collect(){
+    var date=$("entryDate").value || todayISO(), answers={};
+    ALL.forEach(function(q){
+      var i=document.querySelector('input[data-key="'+q.key+'"]');
+      answers[q.key]= !!(i && i.checked);
+    });
+    var score=0;
+    QUESTIONS.forEach(function(q){ if(answers[q.key]) score+=(q.positive?1:-1); });
+    return {date:date, savedAt:new Date().toISOString(), answers:answers, moodScore:score, note:$("note").value.trim()};
+  }
+  function filename(date){
+    var t=new Date(), p=function(n){return (n<10?"0":"")+n;};
+    return "data/entries/"+date+"_"+p(t.getHours())+p(t.getMinutes())+p(t.getSeconds())+".json";
+  }
+
+  // ---- save ----
+  $("saveBtn").addEventListener("click", function(){
+    var s=loadSettings();
+    if(!s.token){ setStatus("Add your GitHub token in settings (⚙) first.","err"); openSettings(); return; }
+    if(!s.owner||!s.repo){ setStatus("Set the repo owner and name in settings.","err"); openSettings(); return; }
+    var entry=collect(), path=filename(entry.date);
+    var url="https://api.github.com/repos/"+encodeURIComponent(s.owner)+"/"+encodeURIComponent(s.repo)+"/contents/"+path;
+    var body={message:"diary: "+entry.date, branch:s.branch, content:b64encode(JSON.stringify(entry,null,2))};
+    $("saveBtn").disabled=true; setStatus("Saving…","");
+    fetch(url,{method:"PUT",headers:{"Authorization":"Bearer "+s.token,"Accept":"application/vnd.github+json","Content-Type":"application/json"},body:JSON.stringify(body)})
+    .then(function(r){ return r.json().then(function(j){ return {ok:r.ok,status:r.status,j:j}; }); })
+    .then(function(res){
+      if(res.ok){ setStatus("Saved to GitHub ✓  (mood score "+(entry.moodScore>0?"+":"")+entry.moodScore+")","ok"); $("note").value=""; loadHistory(); }
+      else { setStatus("Couldn’t save: "+((res.j&&res.j.message)||("HTTP "+res.status)),"err"); }
+    })
+    .catch(function(e){ setStatus("Network error: "+e.message,"err"); })
+    .then(function(){ $("saveBtn").disabled=false; });
+  });
+
+  // ---- history + charts ----
+  var moodChart=null, freqChart=null;
+  function ghHeaders(token){ return {"Authorization":"Bearer "+token,"Accept":"application/vnd.github+json"}; }
+
+  function loadHistory(){
+    var s=loadSettings();
+    if(!s.token){ $("trendMsg").textContent="Add your token in settings (⚙) to load trends."; return; }
+    $("trendMsg").style.display="block"; $("trendMsg").textContent="Loading…";
+    var base="https://api.github.com/repos/"+encodeURIComponent(s.owner)+"/"+encodeURIComponent(s.repo)+"/contents/data/entries?ref="+encodeURIComponent(s.branch);
+    fetch(base,{headers:ghHeaders(s.token)})
+    .then(function(r){ if(r.status===404) return []; return r.json(); })
+    .then(function(list){
+      if(!Array.isArray(list)||list.length===0){ $("trendMsg").textContent="No saved entries yet — save a few days and they’ll chart here."; $("charts").style.display="none"; return; }
+      list=list.filter(function(f){ return /\.json$/.test(f.name); });
+      return Promise.all(list.map(function(f){
+        return fetch(f.url,{headers:ghHeaders(s.token)}).then(function(r){return r.json();})
+          .then(function(o){ try{ return JSON.parse(b64decode(o.content)); }catch(e){ return null; } });
+      }));
+    })
+    .then(function(entries){
+      if(!entries) return;
+      entries=entries.filter(Boolean).sort(function(a,b){ return (a.savedAt||a.date) < (b.savedAt||b.date) ? -1 : 1; });
+      if(entries.length===0){ $("trendMsg").textContent="No readable entries yet."; return; }
+      render(entries);
+    })
+    .catch(function(e){ $("trendMsg").textContent="Couldn’t load trends: "+e.message; });
+  }
+
+  function render(entries){
+    $("trendMsg").style.display="none";
+    $("charts").style.display="block";
+    var labels=entries.map(function(e){ return (e.date||"").slice(5); }); // MM-DD
+    var scores=entries.map(function(e){ return e.moodScore||0; });
+
+    if(moodChart) moodChart.destroy();
+    moodChart=new Chart($("moodChart").getContext("2d"),{
+      type:"line",
+      data:{labels:labels,datasets:[{label:"Mood score",data:scores,borderColor:"#ec7a2e",backgroundColor:"rgba(236,122,46,.15)",fill:true,tension:.3,pointRadius:3,pointBackgroundColor:"#ec7a2e"}]},
+      options:{plugins:{title:{display:true,text:"Mood score over time",color:"#d4621a",font:{size:14,weight:"bold"}},legend:{display:false}},
+               scales:{y:{grid:{color:"#eee"}},x:{grid:{display:false}}}}
+    });
+
+    // frequency: how often each box was ticked
+    var freqLabels=ALL.map(function(q){ return q.short; });
+    var counts=ALL.map(function(q){ return entries.reduce(function(n,e){ return n+((e.answers&&e.answers[q.key])?1:0); },0); });
+    var colors=ALL.map(function(q){
+      if(q.key==="on_period"||q.key==="period_day1"||q.key==="cramps") return "#c8506f";
+      return (q.positive===false) ? "#9aa0a6" : "#ec7a2e";
+    });
+    if(freqChart) freqChart.destroy();
+    freqChart=new Chart($("freqChart").getContext("2d"),{
+      type:"bar",
+      data:{labels:freqLabels,datasets:[{label:"Days ticked",data:counts,backgroundColor:colors,borderRadius:6}]},
+      options:{indexAxis:"y",plugins:{title:{display:true,text:"How often each box was ticked ("+entries.length+" entries)",color:"#d4621a",font:{size:14,weight:"bold"}},legend:{display:false}},
+               scales:{x:{beginAtZero:true,grid:{color:"#eee"},ticks:{precision:0}},y:{grid:{display:false}}}}
+    });
+  }
+
+  $("refreshBtn").addEventListener("click", loadHistory);
+  // auto-load on open if a token is already set
+  if(loadSettings().token) loadHistory();
+})();
+</script>
+</body>
+</html>
