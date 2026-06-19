@@ -53,6 +53,12 @@
   .period label.q:has(input:checked){background:var(--period-soft);border-color:var(--period)}
   .pill{display:inline-block;background:var(--period-soft);color:var(--period);font-weight:600;padding:3px 9px;border-radius:999px;vertical-align:middle}
   .period .q input:checked{background:var(--period);border-color:var(--period)}
+  .med{border-top:3px solid #2f9e8f}
+  .med .q input:checked{background:#2f9e8f;border-color:#2f9e8f}
+  .med label.q:has(input:checked){background:#e6f5f2;border-color:#2f9e8f}
+  .med .head{color:#1f8377}
+  .medpill{background:#e6f5f2;color:#1f8377}
+  .caretline{font-size:.82rem;color:var(--muted);margin:-2px 0 14px;line-height:1.45}
   .save{width:100%;border:none;background:var(--orange);color:#fff;font-size:1.05rem;font-weight:700;padding:16px;border-radius:14px;cursor:pointer;transition:.15s;box-shadow:0 6px 16px rgba(236,122,46,.35)}
   .save:hover{background:var(--orange-dk)}
   .save:disabled{opacity:.55;cursor:default;box-shadow:none}
@@ -98,6 +104,12 @@
   <div class="card period">
     <h2 class="head">Cycle <span class="pill">tracking</span></h2>
     <div id="periodQs"></div>
+  </div>
+
+  <div class="card med">
+    <h2 class="head">Medication &amp; taper <span class="pill medpill">40 → 20 mg</span></h2>
+    <p class="caretline">How the dose change is sitting. Educational tracking only — not medical advice. Share these with your prescriber, and contact them if your mood, sleep, appetite or anxiety get notably worse and stay that way.</p>
+    <div id="medQs"></div>
   </div>
 
   <div class="card">
@@ -169,11 +181,31 @@
     {key:"tired",       emoji:"😴", text:"I felt tired or drained",     short:"Tired",       positive:false}
   ];
   var PERIOD_QS = [
-    {key:"on_period",   emoji:"🩸", text:"On my period today",             short:"Period"},
-    {key:"period_day1", emoji:"1️⃣", text:"Today is day 1 (period started)",short:"Day 1"},
-    {key:"cramps",      emoji:"🤕", text:"Cramps or physical discomfort",  short:"Cramps"}
+    {key:"on_period",    emoji:"🩸", text:"On my period today",              short:"Period"},
+    {key:"period_day1",  emoji:"1️⃣", text:"Today is day 1 (period started)", short:"Day 1"},
+    {key:"flow_light",   emoji:"💧", text:"Light flow",                      short:"Light"},
+    {key:"flow_medium",  emoji:"💦", text:"Medium flow",                     short:"Medium"},
+    {key:"flow_heavy",   emoji:"🌊", text:"Heavy flow",                      short:"Heavy"},
+    {key:"spotting",     emoji:"🔸", text:"Spotting",                        short:"Spotting"},
+    {key:"cramps",       emoji:"🤕", text:"Cramps",                          short:"Cramps"},
+    {key:"bloating",     emoji:"🎈", text:"Bloating",                        short:"Bloating"},
+    {key:"breast_tender",emoji:"🤍", text:"Sore or tender breasts",          short:"Tender"},
+    {key:"pms_mood",     emoji:"🎭", text:"PMS mood swings",                 short:"PMS mood"}
   ];
-  var ALL = QUESTIONS.concat(PERIOD_QS);
+  // Medication / taper tracking — grounded in the dose guide + SSRI discontinuation (FINISH) symptoms
+  var MED_QS = [
+    {key:"dose_taken",   emoji:"💊", text:"Took my fluoxetine as planned",   short:"Dose taken"},
+    {key:"dizzy_zaps",   emoji:"🌀", text:"Dizziness or “brain zaps”",short:"Dizzy/zaps"},
+    {key:"nausea",       emoji:"🤢", text:"Nausea or stomach upset",         short:"Nausea"},
+    {key:"med_headache", emoji:"🤕", text:"Headache",                        short:"Headache"},
+    {key:"flu_like",     emoji:"🤒", text:"Flu-like or achy",               short:"Flu-like"},
+    {key:"sleep_trouble",emoji:"🌙", text:"Trouble sleeping",                short:"Sleep"},
+    {key:"vivid_dreams", emoji:"💭", text:"Vivid or strange dreams",         short:"Dreams"},
+    {key:"appetite",     emoji:"🍽️", text:"Appetite change",                short:"Appetite"}
+  ];
+  var ALL = QUESTIONS.concat(PERIOD_QS, MED_QS);
+  var PERIOD_KEYS = PERIOD_QS.map(function(q){return q.key;});
+  var MED_KEYS = MED_QS.map(function(q){return q.key;});
 
   var LS = "moodDiarySettings";
   var DEFAULTS = {owner:"nicolaslekai", repo:"Fluoxetine", branch:"main"};
@@ -200,6 +232,7 @@
   }
   QUESTIONS.forEach(function(q){ $("questions").appendChild(row(q)); });
   PERIOD_QS.forEach(function(q){ $("periodQs").appendChild(row(q)); });
+  MED_QS.forEach(function(q){ $("medQs").appendChild(row(q)); });
 
   $("entryDate").value = todayISO();
   if (!localStorage.getItem("moodDiaryStarted")){
@@ -308,7 +341,8 @@
     var freqLabels=ALL.map(function(q){ return q.short; });
     var counts=ALL.map(function(q){ return entries.reduce(function(n,e){ return n+((e.answers&&e.answers[q.key])?1:0); },0); });
     var colors=ALL.map(function(q){
-      if(q.key==="on_period"||q.key==="period_day1"||q.key==="cramps") return "#c8506f";
+      if(PERIOD_KEYS.indexOf(q.key)>=0) return "#c8506f";
+      if(MED_KEYS.indexOf(q.key)>=0) return "#2f9e8f";
       return (q.positive===false) ? "#9aa0a6" : "#ec7a2e";
     });
     if(freqChart) freqChart.destroy();
