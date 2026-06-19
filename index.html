@@ -136,8 +136,7 @@
     <h2 class="head">Trends</h2>
     <p class="empty" id="trendMsg">Load your past entries to see how things are trending.</p>
     <div class="charts" id="charts">
-      <canvas id="moodChart" height="170"></canvas>
-      <canvas id="freqChart" height="240"></canvas>
+      <canvas id="moodChart" height="200"></canvas>
     </div>
   </div>
 </div>
@@ -216,6 +215,24 @@
   var ALL = QUESTIONS.concat(PERIOD_QS, MED_QS);
   var PERIOD_KEYS = PERIOD_QS.map(function(q){return q.key;});
   var MED_KEYS = MED_QS.map(function(q){return q.key;});
+
+  // Mood score 0–10: positives lift it, negatives pull it down (5 = neutral)
+  function scoreOf(answers){
+    answers = answers || {};
+    var pos=0,posMax=0,neg=0,negMax=0;
+    QUESTIONS.forEach(function(q){
+      if(q.positive){ posMax++; if(answers[q.key]) pos++; }
+      else { negMax++; if(answers[q.key]) neg++; }
+    });
+    var s = (pos/posMax)*5 + (1 - neg/negMax)*5;
+    return Math.round(s);
+  }
+  // Low = blue, high = orange
+  function colorForScore(s){
+    var t=Math.max(0,Math.min(1,s/10));
+    var r=Math.round(59+(236-59)*t), g=Math.round(130+(122-130)*t), b=Math.round(246+(46-246)*t);
+    return "rgb("+r+","+g+","+b+")";
+  }
 
   var LS = "moodDiarySettings";
   var DEFAULTS = {owner:"nicolaslekai", repo:"Fluoxetine", branch:"main"};
@@ -298,9 +315,7 @@
       var i=document.querySelector('input[data-key="'+q.key+'"]');
       answers[q.key]= !!(i && i.checked);
     });
-    var score=0;
-    QUESTIONS.forEach(function(q){ if(answers[q.key]) score+=(q.positive?1:-1); });
-    return {date:date, savedAt:new Date().toISOString(), answers:answers, moodScore:score, note:$("note").value.trim()};
+    return {date:date, savedAt:new Date().toISOString(), answers:answers, moodScore:scoreOf(answers), note:$("note").value.trim()};
   }
   function filename(date){
     var t=new Date(), p=function(n){return (n<10?"0":"")+n;};
@@ -319,7 +334,7 @@
     fetch(url,{method:"PUT",headers:{"Authorization":"Bearer "+s.token,"Accept":"application/vnd.github+json","Content-Type":"application/json"},body:JSON.stringify(body)})
     .then(function(r){ return r.json().then(function(j){ return {ok:r.ok,status:r.status,j:j}; }); })
     .then(function(res){
-      if(res.ok){ setStatus("Saved to GitHub ✓  (mood score "+(entry.moodScore>0?"+":"")+entry.moodScore+")","ok"); $("note").value=""; loadHistory(); }
+      if(res.ok){ setStatus("Saved to GitHub ✓  (mood "+entry.moodScore+"/10)","ok"); $("note").value=""; loadHistory(); }
       else { setStatus("Couldn’t save: "+((res.j&&res.j.message)||("HTTP "+res.status)),"err"); }
     })
     .catch(function(e){ setStatus("Network error: "+e.message,"err"); })
@@ -327,7 +342,7 @@
   });
 
   // ---- history + charts ----
-  var moodChart=null, freqChart=null;
+  var moodChart=null;
   function ghHeaders(token){ return {"Authorization":"Bearer "+token,"Accept":"application/vnd.github+json"}; }
 
   function loadHistory(){
@@ -358,30 +373,20 @@
     $("trendMsg").style.display="none";
     $("charts").style.display="block";
     var labels=entries.map(function(e){ return (e.date||"").slice(5); }); // MM-DD
-    var scores=entries.map(function(e){ return e.moodScore||0; });
+    var scores=entries.map(function(e){ return scoreOf(e.answers); });
+    var ptColors=scores.map(colorForScore);
 
     if(moodChart) moodChart.destroy();
     moodChart=new Chart($("moodChart").getContext("2d"),{
       type:"line",
-      data:{labels:labels,datasets:[{label:"Mood score",data:scores,borderColor:"#ec7a2e",backgroundColor:"rgba(236,122,46,.15)",fill:true,tension:.3,pointRadius:3,pointBackgroundColor:"#ec7a2e"}]},
-      options:{plugins:{title:{display:true,text:"Mood score over time",color:"#d4621a",font:{size:14,weight:"bold"}},legend:{display:false}},
-               scales:{y:{grid:{color:"#eee"}},x:{grid:{display:false}}}}
-    });
-
-    // frequency: how often each box was ticked
-    var freqLabels=ALL.map(function(q){ return q.short; });
-    var counts=ALL.map(function(q){ return entries.reduce(function(n,e){ return n+((e.answers&&e.answers[q.key])?1:0); },0); });
-    var colors=ALL.map(function(q){
-      if(PERIOD_KEYS.indexOf(q.key)>=0) return "#c8506f";
-      if(MED_KEYS.indexOf(q.key)>=0) return "#2f9e8f";
-      return (q.positive===false) ? "#9aa0a6" : "#ec7a2e";
-    });
-    if(freqChart) freqChart.destroy();
-    freqChart=new Chart($("freqChart").getContext("2d"),{
-      type:"bar",
-      data:{labels:freqLabels,datasets:[{label:"Days ticked",data:counts,backgroundColor:colors,borderRadius:6}]},
-      options:{indexAxis:"y",plugins:{title:{display:true,text:"How often each box was ticked ("+entries.length+" entries)",color:"#d4621a",font:{size:14,weight:"bold"}},legend:{display:false}},
-               scales:{x:{beginAtZero:true,grid:{color:"#eee"},ticks:{precision:0}},y:{grid:{display:false}}}}
+      data:{labels:labels,datasets:[{
+        label:"Mood score", data:scores,
+        pointBackgroundColor:ptColors, pointBorderColor:ptColors, pointRadius:4, pointHoverRadius:6,
+        borderColor:"#cfcfcf", borderWidth:2, tension:.3, fill:false,
+        segment:{ borderColor:function(ctx){ return colorForScore(ctx.p1.parsed.y); } }
+      }]},
+      options:{plugins:{title:{display:true,text:"Mood score (0–10) — blue = low, orange = high",color:"#d4621a",font:{size:14,weight:"bold"}},legend:{display:false}},
+               scales:{y:{min:0,max:10,ticks:{stepSize:2},grid:{color:"#eee"}},x:{grid:{display:false}}}}
     });
   }
 
