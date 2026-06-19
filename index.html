@@ -41,6 +41,11 @@
   }
   input:focus,textarea:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px var(--orange-soft)}
   textarea{resize:vertical;min-height:74px}
+  .daterow{display:flex;align-items:center;gap:10px}
+  .datedisplay{flex:1;text-align:center;font-size:1.05rem;font-weight:600;color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:12px 10px;background:#fff}
+  .daybtn{flex:none;width:46px;height:46px;border:1px solid var(--line);background:#fff;border-radius:12px;font-size:1.5rem;color:var(--orange);cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center}
+  .daybtn:hover{border-color:var(--orange)}
+  .daybtn:disabled{opacity:.3;cursor:default}
   .q{display:flex;align-items:center;gap:11px;padding:13px 14px;border:1px solid var(--line);border-radius:13px;margin-bottom:9px;cursor:pointer;transition:.15s;background:#fff}
   .q:last-child{margin-bottom:0}
   .q:hover{border-color:#eccba9;background:#fffaf4}
@@ -92,8 +97,13 @@
   <p class="sub" id="subline">A quick daily check-in.</p>
 
   <div class="card">
-    <label class="field" for="entryDate">Date</label>
-    <input type="date" id="entryDate" />
+    <label class="field">Date</label>
+    <div class="daterow">
+      <button type="button" class="daybtn" id="dayPrev" aria-label="Previous day">&lsaquo;</button>
+      <div class="datedisplay" id="dateDisplay">&mdash;</div>
+      <button type="button" class="daybtn" id="dayNext" aria-label="Next day">&rsaquo;</button>
+    </div>
+    <input type="hidden" id="entryDate" />
   </div>
 
   <div class="card">
@@ -234,10 +244,33 @@
   PERIOD_QS.forEach(function(q){ $("periodQs").appendChild(row(q)); });
   MED_QS.forEach(function(q){ $("medQs").appendChild(row(q)); });
 
-  // Diary starts on 2026-06-20: show that date until it arrives, then track today
+  // Date stepper — avoids the native iOS calendar overlay entirely
   var START_DATE = "2026-06-20";
-  var _today = todayISO();
-  $("entryDate").value = (_today < START_DATE) ? START_DATE : _today;
+  function shiftISO(iso, days){
+    var d=new Date(iso+"T00:00:00"); d.setDate(d.getDate()+days);
+    var p=function(n){return (n<10?"0":"")+n;};
+    return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+  }
+  function fmtFriendly(iso){
+    var d=new Date(iso+"T00:00:00");
+    return d.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short",year:"numeric"});
+  }
+  function updateDateUI(){
+    var iso=$("entryDate").value;
+    $("dateDisplay").textContent=fmtFriendly(iso);
+    $("dayNext").disabled = (iso >= todayISO()); // can't log the future
+  }
+  (function initDate(){
+    var t=todayISO();
+    $("entryDate").value = (t < START_DATE) ? START_DATE : t;
+    updateDateUI();
+    $("dayPrev").addEventListener("click", function(){
+      $("entryDate").value = shiftISO($("entryDate").value, -1); updateDateUI();
+    });
+    $("dayNext").addEventListener("click", function(){
+      if($("entryDate").value < todayISO()){ $("entryDate").value = shiftISO($("entryDate").value, 1); updateDateUI(); }
+    });
+  })();
   if (!localStorage.getItem("moodDiaryStarted")){
     var op=document.querySelector('input[data-key="on_period"]');
     if(op) op.checked=true;
