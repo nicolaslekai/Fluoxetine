@@ -1,0 +1,23 @@
+{
+  "date": "2026-06-20",
+  "savedAt": "2026-06-19T21:18:00.723Z",
+  "answers": {
+    "happy": true,
+    "calm": true,
+    "energetic": false,
+    "clear_mind": true,
+    "grateful": true,
+    "fun_work": false,
+    "connected": true,
+    "sad": false,
+    "irritated": false,
+    "anxious": false,
+    "overwhelmed": false,
+    "tired": false,
+    "on_period": true,
+    "period_day1": true,
+    "cramps": false
+  },
+  "moodScore": 5,
+  "note": ""
+}
